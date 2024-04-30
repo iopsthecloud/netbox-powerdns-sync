@@ -87,8 +87,8 @@ def get_managed_comment() -> list:
 
 def make_canonical(name: str) -> str:
     """Ensure string ends with a dot"""
-    if name[-1] != ".":
-        name = name + "."
+    name = name.rstrip(".")  # Remove trailing dots
+    name = name + "."  # Add a dot at the end
     return name
 
 
@@ -120,15 +120,15 @@ def find_objectchange_ip(ip, request_id):
 def set_dns_name(ip_address_str: str, dns_name_str: str) -> bool:
     """
     Set the DNS name for a given IPAddress in NetBox.
-    
+
     Parameters:
     - ip_address_str (str): The IP address for which the DNS name needs to be set.
     - dns_name_str (str): The DNS name to set for the given IP address.
-    
+
     Returns:
     - bool: True if the operation succeeded, False otherwise.
     """
-    
+
     try:
         print(f"Setting DNS name {dns_name_str} for IP address {ip_address_str}")
         ip_address = IPAddress.objects.get(address=str(ip_address_str))

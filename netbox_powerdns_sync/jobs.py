@@ -284,7 +284,7 @@ class PowerdnsTaskIP(PowerdnsTask):
 
         self.log_info(f"Reverse record {dns_record}")
         self.create_record(dns_record)
-        set_dns_name(self.ip, dns_record.data)
+        set_dns_name(self.ip, make_canonical(dns_record.data))
         self.log_success("Reverse record created")
 
 
@@ -478,13 +478,13 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                         DnsRecord(
                             name=name,
                             dns_type=PTR_TYPE,
-                            data=f"{fqdn or ''}{custom_domain or ''}.",
+                            data=make_canonical(f"{fqdn or ''}{custom_domain or ''}."),
                             ttl=get_ip_ttl(self.ip) or self.reverse_zone.default_ttl,
                             zone_name=self.reverse_zone.name,
                         )
                     )
 
-                    set_dns_name(self.ip, f"{fqdn or ''}{custom_domain or ''}.")
+                    set_dns_name(self.ip, make_canonical(f"{fqdn or ''}{custom_domain or ''}"))
 
         return records
 

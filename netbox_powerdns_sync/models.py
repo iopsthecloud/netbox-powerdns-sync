@@ -42,7 +42,7 @@ class ApiServer(NetBoxModel):
     )
     api_url = models.URLField(
         verbose_name="API URL",
-        help_text="Base URL to PowerDNS REST API",
+        help_text="Base URL to PowerDNS REST API (http://<fqdn>:8081/api/v1)",
         max_length=200,
         unique=True,
     )
@@ -200,7 +200,7 @@ class Zone(NetBoxModel):
                 raise ValidationError(msg)
             else:
                 raise ValidationError({"is_default": msg})
-        
+
         if not self.is_reverse and not any((
             self.naming_ip_method, self.naming_fgrpgroup_method, self.naming_device_method
         )):
@@ -227,8 +227,8 @@ class Zone(NetBoxModel):
             if name.endswith(zone.name):
                 if not best_match or len(best_match.name) < len(zone.name):
                     best_match = zone
-        
-        
+
+
         return best_match
 
     @classmethod

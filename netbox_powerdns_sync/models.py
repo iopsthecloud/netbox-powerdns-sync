@@ -227,8 +227,6 @@ class Zone(NetBoxModel):
             if name.endswith(zone.name):
                 if not best_match or len(best_match.name) < len(zone.name):
                     best_match = zone
-
-
         return best_match
 
     @classmethod

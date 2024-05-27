@@ -201,7 +201,7 @@ class Zone(NetBoxModel):
             else:
                 raise ValidationError({"is_default": msg})
 
-        if not self.is_reverse and not any((
+        if not any((
             self.naming_ip_method, self.naming_fgrpgroup_method, self.naming_device_method
         )):
             raise ValidationError("At least one of naming methods must be set")

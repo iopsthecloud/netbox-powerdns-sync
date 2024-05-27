@@ -23,6 +23,7 @@ from .utils import (
     make_canonical,
     make_dns_label,
     set_dns_name,
+    is_reverse,
 )
 
 logger = logging.getLogger("netbox.netbox_powerdns_sync.jobs")
@@ -348,6 +349,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                 interval=job.interval,
             )
 
+    @property
     def get_addresses(self):
         """Get IPAddress objects that could have DNS records"""
         zone_canonical = self.zone.name
@@ -371,21 +373,21 @@ class PowerdnsTaskFullSync(PowerdnsTask):
 
         self.log_debug("Checking if this is a rdns zone")
         parts = zone_domain.split(".")
-        if len(parts) >= 3 and parts[-2] == "in-addr" and parts[-1] == "arpa":
+        if is_reverse(zone_canonical):
             self.log_debug(f"Zone is reverse zone, looking for prefixes")
+            network_cidr = None
 
-            if len(parts) >= 3 and parts[-2] == "in-addr" and parts[-1] == "arpa":
-                if len(parts) == 5:  # e.g., 0.72.10.in-addr.arpa -> 10.72.0.0/24
-                    base_ip = f"{parts[2]}.{parts[1]}.{parts[0]}.0"
-                    network_cidr = IPNetwork(f"{base_ip}/24")
-                elif len(parts) == 4:  # e.g., 72.10.in-addr.arpa -> 10.72.0.0/16
-                    base_ip = f"{parts[1]}.{parts[0]}.0.0"
-                    network_cidr = IPNetwork(f"{base_ip}/16")
-                elif len(parts) == 3:  # e.g., 10.in-addr.arpa -> 10.0.0.0/8
-                    base_ip = f"{parts[0]}.0.0.0"
-                    network_cidr = IPNetwork(f"{base_ip}/8")
-                else:
-                    network_cidr = None
+            # Mapping of parts length to CIDR suffix and base IP format
+            parts_length_to_cidr = {
+                5: ('/24', '{2}.{1}.{0}.0'),
+                4: ('/16', '{1}.{0}.0.0'),
+                3: ('/8', '{0}.0.0.0')
+            }
+
+            cidr_suffix, base_ip_format = parts_length_to_cidr.get(len(parts), (None, None))
+            if cidr_suffix and base_ip_format:
+                base_ip = base_ip_format.format(*parts)
+                network_cidr = IPNetwork(f"{base_ip}{cidr_suffix}")
 
             if network_cidr:
                 self.log_debug(
@@ -417,7 +419,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
     def load_netbox_records(self) -> set[DnsRecord]:
         records = set()
         ip: IPAddress
-        ip_addresses = self.get_addresses()
+        ip_addresses = self.get_addresses
 
         self.log_info(f"Found {ip_addresses.count()} matching addresses to check")
         for ip in ip_addresses:
@@ -474,17 +476,31 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                     )
                     fqdn = generate_fqdn(self.ip, self.reverse_zone)
                     custom_domain = get_custom_domain(self.ip)
+
+                    if not (fqdn or custom_domain):
+                        self.log_info(
+                            f"Skipping reverse record for {ip} because of missing fqdn or custom domain"
+                        )
+                        continue
+
+                    self.log_info(f"Reverse record: {name} - {fqdn} - {custom_domain}")
+
+                    if fqdn and fqdn.endswith('.'):
+                        dns_data = make_canonical(f"{fqdn}")
+                    else:
+                        dns_data = make_canonical(f"{fqdn or ''}{custom_domain or ''}")
+
                     records.add(
                         DnsRecord(
                             name=name,
                             dns_type=PTR_TYPE,
-                            data=make_canonical(f"{fqdn or ''}{custom_domain or ''}."),
+                            data = dns_data,
                             ttl=get_ip_ttl(self.ip) or self.reverse_zone.default_ttl,
                             zone_name=self.reverse_zone.name,
                         )
                     )
 
-                    set_dns_name(self.ip, make_canonical(f"{fqdn or ''}{custom_domain or ''}"))
+                    set_dns_name(str(self.ip), dns_data)
 
         return records
 

@@ -476,17 +476,31 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                     )
                     fqdn = generate_fqdn(self.ip, self.reverse_zone)
                     custom_domain = get_custom_domain(self.ip)
+
+                    if not (fqdn or custom_domain):
+                        self.log_info(
+                            f"Skipping reverse record for {ip} because of missing fqdn or custom domain"
+                        )
+                        continue
+
+                    self.log_info(f"Reverse record: {name} - {fqdn} - {custom_domain}")
+
+                    if fqdn and fqdn.endswith('.'):
+                        dns_data = make_canonical(f"{fqdn}")
+                    else:
+                        dns_data = make_canonical(f"{fqdn or ''}{custom_domain or ''}")
+
                     records.add(
                         DnsRecord(
                             name=name,
                             dns_type=PTR_TYPE,
-                            data=make_canonical(f"{fqdn or ''}{custom_domain or ''}."),
+                            data = dns_data,
                             ttl=get_ip_ttl(self.ip) or self.reverse_zone.default_ttl,
                             zone_name=self.reverse_zone.name,
                         )
                     )
 
-                    set_dns_name(self.ip, make_canonical(f"{fqdn or ''}{custom_domain or ''}"))
+                    set_dns_name(str(self.ip), dns_data)
 
         return records
 

@@ -24,6 +24,7 @@ from .utils import (
     make_dns_label,
     set_dns_name,
     is_reverse,
+    can_manage_record,
 )
 
 logger = logging.getLogger("netbox.netbox_powerdns_sync.jobs")
@@ -319,10 +320,8 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             task.log_info(
                 f"Record change count: to_delete:{len(to_delete)} to_create:{len(to_create)}"
             )
-            for record in to_delete:
-                task.delete_record(record)
-            for record in to_create:
-                task.create_record(record)
+            task.process_records(to_delete, "delete")
+            task.process_records(to_create, "create")
             task.log_success("Finished")
             task.job.terminate()
         except PowerdnsSyncNoServers as e:
@@ -348,6 +347,18 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                 schedule_at=new_scheduled_time,
                 interval=job.interval,
             )
+
+    def process_records(self, records: set[DnsRecord], action: str) -> None:
+        for record in records:
+            if not can_manage_record(record):
+                self.log_debug(
+                    f"Skipping {action}ing record {record['name']} because of type {record['type']} or because the RR is unmanageable by the plugin"
+                )
+                continue
+            if action == "delete":
+                self.delete_record(record)
+            elif action == "create":
+                self.create_record(record)
 
     @property
     def get_addresses(self):

@@ -31,6 +31,9 @@ class DnsRecord:
     def as_rrset(self) -> powerdns.RRSet:
         return powerdns.RRSet(self.name, self.dns_type, [self.data], ttl=self.ttl, comments=get_managed_comment())
 
+    def get_fqdn(self) -> str:
+        return f"{self.name}.{self.zone_name}"
+
     def __hash__(self) -> int:
         return hash(tuple([self.name, self.dns_type, self.ttl, self.data, self.zone_name]))
 
@@ -38,9 +41,6 @@ class DnsRecord:
         return self.name == other.name and self.data == other.data and \
             self.dns_type == other.dns_type and self.ttl == other.ttl and \
             self.zone_name == other.zone_name
-
-    def __repr__(self) -> str:
-        return f"<DNSRecord: {self}>"
 
     def __str__(self) -> str:
         return f"{self.name}.{self.zone_name} {self.dns_type} {self.ttl} {self.data}"

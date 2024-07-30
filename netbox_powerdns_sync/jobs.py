@@ -310,9 +310,9 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             task.log_debug("Loading Netbox records")
             netbox_records = task.load_netbox_records()
             task.log_debug("Loading Powerdns records")
-            pdns_records = task.load_pdns_records()
+            pdns_records, pdns_exluded_records = task.load_pdns_records()
             task.log_info(
-                f"Found record count: netbox:{len(netbox_records)} pdns:{len(pdns_records)}"
+                f"Found record count: netbox:{len(netbox_records)} pdns:{len(pdns_records)} pdns excluded:{len(pdns_exluded_records)}"
             )
             to_delete = pdns_records - netbox_records
             to_create = netbox_records - pdns_records
@@ -322,7 +322,16 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             for record in to_delete:
                 task.delete_record(record)
             for record in to_create:
-                task.create_record(record)
+                excluded_record_type = pdns_exluded_records.get(record.get_fqdn())
+                task.log_debug(
+                    f"Check if {record.get_fqdn()} is in pdns_excluded_records => {excluded_record_type}"
+                )
+                if excluded_record_type:
+                    task.log_info(
+                        f"Record {record.name} of type {excluded_record_type} skipped because it was found in pdns_excluded_records."
+                    )
+                else:
+                    task.create_record(record)
             task.log_success("Finished")
             task.job.terminate()
         except PowerdnsSyncNoServers as e:
@@ -504,8 +513,9 @@ class PowerdnsTaskFullSync(PowerdnsTask):
 
         return records
 
-    def load_pdns_records(self) -> set[DnsRecord]:
+    def load_pdns_records(self) -> tuple[set[DnsRecord], dict]:
         flat_records = set()
+        exclude_records = {}  # Converti en dictionnaire
         checked_types = [PTR_TYPE] + list(FAMILY_TYPES.values())
         servers = self.get_pdns_servers_for_zone(self.zone.name)
         if not servers:
@@ -521,9 +531,10 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                     self.log_debug(
                         f"Skipping record {record['name']} because of type {record['type']}"
                     )
-                    continue
+                    # Utilisez le nom du record comme clé et le type comme valeur
+                    exclude_records[record['name']] = record['type']
                 else:
                     self.log_debug(f"Processing record {record['name']}")
+                    flat_records.update(DnsRecord.from_pdns_record(record, pdns_zone))
 
-                flat_records.update(DnsRecord.from_pdns_record(record, pdns_zone))
-        return flat_records
+        return flat_records, exclude_records

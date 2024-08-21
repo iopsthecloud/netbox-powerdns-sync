@@ -2,10 +2,8 @@
 name = "netbox-powerdns-sync"
 version = "1.0.0"
 description = "Sync DNS records in PowerDNS with NetBox"
-authors = [
-  {name = "Matej Vadnjal", email = "matej.vadnjal@arnes.si"},
-  {name = "Wieger Bontekoe", email = "wieger.bontekoe@productsup.com"}
-]
+authors = ["Matej Vadnjal <matej.vadnjal@arnes.si>", "Wieger Bontekoe <wieger.bontekoe@productsup.com>"]
+
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/ArnesSI/netbox-powerdns-sync/"

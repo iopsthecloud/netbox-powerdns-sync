@@ -2,8 +2,10 @@ from netbox.views import generic
 from utilities.utils import count_related
 from utilities.views import register_model_view
 
-from .. import filtersets, forms, tables
 from ..models import ApiServer, Zone
+from ..forms.filtersets import *
+from ..forms.model_forms import *
+from ..forms.sync import *
 
 __all__ = (
     "ApiServerListView",
@@ -21,7 +23,7 @@ class ApiServerListView(generic.ObjectListView):
         zone_count=count_related(Zone, "api_servers"),
     )
     filterset = filtersets.ApiServerFilterSet
-    filterset_form = forms.ApiServerFilterForm
+    filterset_form = ApiServerFilterForm
     table = tables.ApiServerTable
 
 

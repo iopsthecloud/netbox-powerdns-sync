@@ -461,13 +461,13 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             self.ip = ip
             self.make_fqdn()
             if not self.forward_zone:
-                self.log_info(f"No matching forward zone found for IP:{ip}. Skipping")
+                self.log_info(f"No matching forward zone found for IP: {ip}. Skipping")
             else:
                 self.log_info(f"Found matching forward zone to be {self.forward_zone}")
 
             if not self.fqdn:
                 self.log_info(
-                    f"No FQDN could be determined for IP:{ip} (zone:{self.forward_zone}). Skipping"
+                    f"No FQDN could be determined for IP: {ip} (zone:{self.forward_zone}). Skipping"
                 )
 
             self.log_debug(f"Forward FQDN: {self.fqdn}")
@@ -504,11 +504,13 @@ class PowerdnsTaskFullSync(PowerdnsTask):
 
                 if self.reverse_zone == self.zone:
                     name = reverse_fqdn.replace(self.reverse_zone.name, "").rstrip(".")
-                    self.log_debug(
-                        f"Reverse name: {name} - {self.fqdn} - {self.reverse_zone.name}"
-                    )
+                    
                     fqdn = generate_fqdn(self.ip, self.reverse_zone)
                     custom_domain = get_custom_domain(self.ip)
+
+                    self.log_debug(
+                        f"Reverse name: {name} - {fqdn} - {self.reverse_zone.name}"
+                    )
                     
                     if fqdn == "":
                         fqdn = get_default_rdns()

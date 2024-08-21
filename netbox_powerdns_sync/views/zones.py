@@ -4,6 +4,10 @@ from utilities.views import register_model_view
 
 from .. import filtersets, forms, tables
 from ..models import ApiServer, Zone
+from ..forms.filtersets import *
+from ..forms.model_forms import *
+from ..forms.sync import *
+from ..filtersets import ZoneFilterSet
 
 __all__ = (
     "ZoneListView",
@@ -20,8 +24,8 @@ class ZoneListView(generic.ObjectListView):
     queryset = Zone.objects.annotate(
         api_server_count=count_related(ApiServer, "zones"),
     )
-    filterset = filtersets.ZoneFilterSet
-    filterset_form = forms.ZoneFilterForm
+    filterset = ZoneFilterSet
+    filterset_form = ZoneFilterForm
     table = tables.ZoneTable
 
 
@@ -33,7 +37,7 @@ class ZoneView(generic.ObjectView):
 @register_model_view(Zone, "edit")
 class ZoneEditView(generic.ObjectEditView):
     queryset = Zone.objects.all()
-    form = forms.ZoneForm
+    form = ZoneForm
 
 
 @register_model_view(Zone, "delete")
@@ -57,5 +61,5 @@ class ZoneDeleteView(generic.ObjectDeleteView):
 
 class ZoneBulkDeleteView(generic.BulkDeleteView):
     queryset = Zone.objects.all()
-    filterset = filtersets.ZoneFilterSet
+    filterset = ZoneFilterSet
     table = tables.ZoneTable

@@ -10,8 +10,8 @@ __all__ = (
     "ApiServerView",
     "ApiServerEditView",
     "ApiServerDeleteView",
-    # "ApiServerBulkImportView",
-    # "ApiServerBulkEditView",
+    "ApiServerBulkImportView",
+    "ApiServerBulkEditView",
     "ApiServerBulkDeleteView",
 )
 

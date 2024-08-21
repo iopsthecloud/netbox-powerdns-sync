@@ -1,5 +1,5 @@
 from netbox.views import generic
-from utilities.utils import count_related
+from utilities.query import count_related
 from utilities.views import register_model_view
 
 from ..models import ApiServer, Zone

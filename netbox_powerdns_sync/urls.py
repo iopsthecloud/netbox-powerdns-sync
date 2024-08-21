@@ -3,7 +3,7 @@ from utilities.urls import get_model_urls
 
 from . import views
 
-urlpatterns = (
+urlpatterns = [
     # API Servers
     path("api-servers/", views.ApiServerListView.as_view(), name="apiserver_list"),
     path("api-servers/add/", views.ApiServerEditView.as_view(), name="apiserver_add"),
@@ -28,4 +28,4 @@ urlpatterns = (
     path("sync/", views.SyncJobsView.as_view(), name="sync_jobs"),
     path("sync/schedule/", views.SyncScheduleView.as_view(), name="sync_schedule"),
     path("sync/<int:job_pk>/", views.SyncResultView.as_view(), name="sync_result"),
-)
+]

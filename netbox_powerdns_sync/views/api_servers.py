@@ -7,6 +7,7 @@ from ..models import ApiServer, Zone
 from ..forms.filtersets import *
 from ..forms.model_forms import *
 from ..forms.sync import *
+from ..filtersets import ApiServerFilterSet
 
 __all__ = (
     "ApiServerListView",

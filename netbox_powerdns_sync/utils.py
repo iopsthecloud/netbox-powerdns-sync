@@ -8,7 +8,7 @@ from extras.models import ObjectChange
 from ipam.models import IPAddress
 from netbox.plugins.utils import get_plugin_config
 from powerdns import Comment, RRSet
-from virtualization.models import VirtualMachine, VMInterface
+from virtualization.models import VirtualMachine, VMInterface, FHRPGroup
 
 from .constants import FAMILY_TYPES, PLUGIN_NAME, PTR_TYPE, PTR_ZONE_SUFFIXES
 
@@ -38,6 +38,9 @@ def get_custom_domain(ip: IPAddress) -> str | None:
     if isinstance(ip.assigned_object, VMInterface):
         vm = VirtualMachine.objects.get(id=ip.assigned_object.virtual_machine.id)
         return vm.cf.get(custom_domain, None)
+
+    if isinstance(ip.assigned_object, FHRPGroup):
+        
 
     return ""
 

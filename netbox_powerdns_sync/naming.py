@@ -152,6 +152,9 @@ class NamingDeviceByInterfacePrimary(NamingBase):
 class NamingDeviceByInterface(NamingBase):
     """Generate name in formatted as: interface.device.zone"""
 
+    def make_fqdn(self) -> str | None:
+        return self.make_name()
+
     def make_name(self) -> str | None:
         self._populate_host_interface()
         if self.host:
@@ -207,7 +210,11 @@ class NamingIpReverse(NamingBase):
 class NamingFGRPGroupName(NamingBase):
     """Use FGRPGroup name: fgrp-group.zone"""
 
+    def make_fqdn(self) -> str | None:
+        return self.make_name()
+
     def make_name(self) -> str | None:
         if isinstance(self.ip.assigned_object, FHRPGroup):
             name = self.ip.assigned_object.name
             name = ".".join(map(make_dns_label, name.split(".")))
+            return name + ".productsup.int"

@@ -509,7 +509,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                     custom_domain = get_custom_domain(self.ip)
 
                     self.log_debug(
-                        f"Reverse name: {name} - {fqdn} - {self.reverse_zone.name}"
+                        f"Reverse name: {name} - {fqdn} - {self.reverse_zone.name} - {custom_domain}"
                     )
                     
                     if fqdn == "":

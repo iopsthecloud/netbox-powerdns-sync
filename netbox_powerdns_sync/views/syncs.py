@@ -10,7 +10,7 @@ from utilities.rqworker import get_workers_for_queue
 from utilities.views import ContentTypePermissionRequiredMixin
 
 from ..constants import JOB_NAME_DEVICE, JOB_NAME_INTERFACE, JOB_NAME_IP, JOB_NAME_SYNC
-from ..forms import ZoneScheduleForm
+from ..forms.sync import ZoneScheduleForm
 from ..jobs import PowerdnsTaskFullSync
 from ..models import Zone
 from ..tables import SyncJobTable
@@ -88,7 +88,7 @@ class SyncResultView(ContentTypePermissionRequiredMixin, View):
         # script = module.scripts[job.name]()
 
         # If this is an HTMX request, return only the result HTML
-        if request.htmx:
+        if request.headers.get('HX-Request'):
             response = render(
                 request,
                 "netbox_powerdns_sync/htmx/sync_result.html",

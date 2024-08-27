@@ -39,9 +39,6 @@ def get_custom_domain(ip: IPAddress) -> str | None:
         vm = VirtualMachine.objects.get(id=ip.assigned_object.virtual_machine.id)
         return vm.cf.get(custom_domain, None)
 
-    if isinstance(ip.assigned_object, FHRPGroup):
-        
-
     return ""
 
 

@@ -19,7 +19,7 @@ DNS records in PowerDNS based on netbox IP Address and Device objects.
 Each zone can define tags on IPAddress, Interface/VMInterface, FGRPGroup
 or Device/VirtualMachine that match that zone. You can also match on
 device role. A zone can also be only used for IPs that are assigned to management
-only interfaces. 
+only interfaces.
 
 When determining the zone to use for an IP Address, match rules are evaluated
 as follows:
@@ -124,6 +124,32 @@ PLUGINS_CONFIG = {
 }
 ```
 
+### Logging
+
+Per default the plugins logs to the `netbox-powerdns-sync` logger using the level `WARNING`. You can change the level using this custom setting in the logging configuration.
+
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'WARNING',
+        },
+    },
+    'loggers': {
+        'netbox.netbox_powerdns_sync.jobs': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+```
+
+For full logs you need to enable the DEBUG mode in Django settings.
+
 ### Available settings
 
 | Setting | Default value | Description |
@@ -167,3 +193,4 @@ Scheduling Zone sync:
 Sync results for Zone:
 
 ![Sync result](docs/img/netbox_powerdns_sync-sync_result.png)
+

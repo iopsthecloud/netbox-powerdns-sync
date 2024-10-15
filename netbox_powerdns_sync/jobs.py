@@ -2,6 +2,7 @@ import logging
 import traceback
 from datetime import timedelta
 
+from django.conf import settings  # Importer la configuration de NetBox
 from core.choices import JobStatusChoices
 from core.models import Job
 from dcim.models import Device, Interface
@@ -43,24 +44,37 @@ class JobLoggingMixin:
         self.job.data = data
 
     def log_debug(self, msg: str) -> None:
-        logger.debug(msg)
-        self.log(LogLevelChoices.LOG_DEFAULT, msg)
+        if settings.DEBUG:
+            logger.debug(msg)
+            self.log(LogLevelChoices.LOG_DEFAULT, msg)
 
     def log_success(self, msg: str) -> None:
         logger.info(msg)
         self.log(LogLevelChoices.LOG_SUCCESS, msg)
 
     def log_info(self, msg: str) -> None:
-        logger.info(msg)
-        self.log(LogLevelChoices.LOG_INFO, msg)
+    # Vérifier si Django est en mode DEBUG ou si le niveau de log est INFO ou inférieur
+        if settings.DEBUG or logger.isEnabledFor(logging.INFO):
+            # Log dans le logger
+            logger.info(msg)
+            # Ajouter le message au log de la tâche
+            self.log(LogLevelChoices.LOG_INFO, msg)
 
     def log_warning(self, msg: str) -> None:
-        logger.warning(msg)
-        self.log(LogLevelChoices.LOG_WARNING, msg)
+    # Vérifier si Django est en mode DEBUG ou si le niveau de log est WARNING ou inférieur
+        if settings.DEBUG or logger.isEnabledFor(logging.WARNING):
+            # Log dans le logger
+            logger.warning(msg)
+            # Ajouter le message au log de la tâche
+            self.log(LogLevelChoices.LOG_WARNING, msg)
 
     def log_failure(self, msg: str) -> None:
-        logger.error(msg)
-        self.log(LogLevelChoices.LOG_FAILURE, msg)
+    # Vérifier si Django est en mode DEBUG ou si le niveau de log est ERROR ou inférieur
+        if settings.DEBUG or logger.isEnabledFor(logging.ERROR):
+            # Log dans le logger
+            logger.error(msg)
+            # Ajouter le message au log de la tâche
+            self.log(LogLevelChoices.LOG_FAILURE, msg)
 
 
 class PowerdnsTask(JobLoggingMixin):

@@ -1,4 +1,4 @@
-from extras.plugins import PluginConfig
+from netbox.plugins import PluginConfig
 from .version import __version__
 
 
@@ -10,7 +10,7 @@ class NetBoxPowerdnsSyncConfig(PluginConfig):
     author = "Matej Vadnjal"
     author_email = "matej.vadnjal@arnes.si"
     base_url = "powerdns-sync"
-    min_version = "3.6.0"
+    min_version = "4.4.0"
     default_settings = {
         "ttl_custom_field": None,
         "powerdns_managed_record_comment": "netbox-powerdns-sync",

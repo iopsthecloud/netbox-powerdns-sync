@@ -4,11 +4,11 @@
 
 <p>
   {% if job.started %}
-    Started: <strong>{{ job.started|annotated_date }}</strong>
+    Started: <strong>{{ job.started|isodatetime }}</strong>
   {% elif job.scheduled %}
-    Scheduled for: <strong>{{ job.scheduled|annotated_date }}</strong> ({{ job.scheduled|naturaltime }})
+    Scheduled for: <strong>{{ job.scheduled|isodatetime }}</strong> ({{ job.scheduled|naturaltime }})
   {% else %}
-    Created: <strong>{{ job.created|annotated_date }}</strong>
+    Created: <strong>{{ job.created|isodatetime }}</strong>
   {% endif %}
   {% if job.completed %}
     Duration: <strong>{{ job.duration }}</strong>

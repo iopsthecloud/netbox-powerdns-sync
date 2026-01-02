@@ -2,10 +2,10 @@ import re
 import unicodedata
 
 from dcim.models import Device, Interface
-from django.contrib.contenttypes.models import ContentType
-from extras.choices import ObjectChangeActionChoices
-from extras.models import ObjectChange
-from extras.plugins.utils import get_plugin_config
+from django.db.models import Q
+from core.choices import ObjectChangeActionChoices
+from core.models import ObjectChange, ObjectType
+from netbox.plugins.utils import get_plugin_config
 from ipam.models import IPAddress
 from powerdns import Comment, RRSet
 from virtualization.models import VirtualMachine, VMInterface
@@ -113,7 +113,7 @@ def find_objectchange_ip(ip, request_id):
     return ObjectChange.objects.filter(
         action=ObjectChangeActionChoices.ACTION_CREATE,
         request_id=request_id,
-        changed_object_type=ContentType.objects.get_for_model(ip),
+        changed_object_type=ObjectType.objects.get_for_model(ip),
         changed_object_id=ip.pk,
     )
 

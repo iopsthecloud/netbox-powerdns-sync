@@ -5,11 +5,11 @@
 
 {% block extra_controls %}
   {% if object.enabled %}
-    <a href="{% url 'plugins:netbox_powerdns_sync:sync_schedule' %}?zones={{ object.pk }}" class="btn btn-sm btn-primary">
+    <a href="{% url 'plugins:netbox_powerdns_sync:sync_schedule' %}?zones={{ object.pk }}" class="btn btn-primary">
       <span class="mdi mdi-sync" aria-hidden="true"></span> Schedule Sync
     </a>
   {% else %}
-    <a href="#" class="btn btn-sm btn-primary disabled">
+    <a href="#" class="btn btn-primary disabled">
       <span class="mdi mdi-sync" aria-hidden="true"></span> Schedule Sync
     </a>
   {% endif %}

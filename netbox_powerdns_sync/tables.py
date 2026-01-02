@@ -15,18 +15,16 @@ SYNC_URL_ID = """<a href="{% url 'plugins:netbox_powerdns_sync:sync_result' job_
 SYNC_URL_NAME = """<a href="{% url 'plugins:netbox_powerdns_sync:sync_result' job_pk=record.id %}">{{ value }}</a>"""
 DEVICE_ROLE_COLUMN = """
 {% for role in value.all %}
-    <span class="badge" style="color: {{ role.color|fgcolor }}; background-color: #{{ role.color }}">
-        <a href="{{ role.get_absolute_url }}">{{ role }}</a>
-    </span>
+    {% include 'inc/badge.html' with label=role color=role.color url=role.get_absolute_url %}
 {% endfor %}
 """
 ZONE_EXTRA_BUTTONS = """
 {% if record.enabled %}
-    <a href="{% url 'plugins:netbox_powerdns_sync:sync_schedule' %}?zones={{ record.pk }}" class="btn btn-sm btn-primary" title="Schedule full sync for zone">
+    <a href="{% url 'plugins:netbox_powerdns_sync:sync_schedule' %}?zones={{ record.pk }}" class="btn btn-primary" title="Schedule full sync for zone">
         <span class="mdi mdi-sync" aria-hidden="true"></span>
     </a>
 {% else %}
-    <a href="#" class="btn btn-sm btn-primary disabled" title="Schedule full sync for zone">
+    <a href="#" class="btn btn-primary disabled" title="Schedule full sync for zone">
         <span class="mdi mdi-sync" aria-hidden="true"></span>
     </a>
 {% endif %}

@@ -262,6 +262,7 @@ class PowerdnsTaskIP(PowerdnsTask):
             self.log_info(
                 f"No FQDN could be determined for IP:{self.ip}. Skipping"
             )
+            return
 
         reverse_fqdn = self.make_reverse_domain()
         self.reverse_zone = Zone.get_best_zone(reverse_fqdn)
@@ -293,8 +294,9 @@ class PowerdnsTaskFullSync(PowerdnsTask):
     def __init__(self, job: Job, zone_id: int = None) -> None:
         super().__init__(job)
         # Support both old way (job.object) and new way (zone_id parameter)
+        # Use filter().first() instead of get() to avoid DoesNotExist exception
         if zone_id:
-            self.zone: Zone = Zone.objects.get(pk=zone_id)
+            self.zone: Zone = Zone.objects.filter(pk=zone_id).first()
         else:
             self.zone: Zone = job.object
 

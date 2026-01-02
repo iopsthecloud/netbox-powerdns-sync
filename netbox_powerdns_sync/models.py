@@ -208,11 +208,10 @@ class Zone(NetBoxModel):
     def delete(self, *args, **kwargs):
         # delete any scheduled jobs for this zone
         if self.pk:
+            # Since we use zone_id instead of instance, search by name pattern
             jobs = Job.objects.filter(
-                object_type_id=ObjectType.objects.get_for_model(self).pk,
-                object_id=self.pk,
                 status="scheduled",
-                name=JOB_NAME_SYNC
+                name__startswith=f"{JOB_NAME_SYNC} - {self.name}"
             )
             jobs.delete()
         return super().delete(*args, **kwargs)

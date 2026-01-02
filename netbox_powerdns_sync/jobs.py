@@ -91,8 +91,10 @@ class PowerdnsTask(JobLoggingMixin):
     def get_pdns_servers_for_zone(self, zone_name: str) -> list[ApiServer]:
         if not zone_name:
             return []
-        zone = Zone.objects.get(name=zone_name)
-        return zone.api_servers.enabled().all()
+        zone = Zone.objects.filter(name=zone_name).first()
+        if not zone:
+            return []
+        return zone.api_servers.filter(enabled=True)
 
     def add_to_output(self, row):
         if not self.job.data:
@@ -230,7 +232,7 @@ class PowerdnsTaskIP(PowerdnsTask):
 
         if not self.forward_zone:
             self.log_info(f"No matching forward zone found for IP:{self.ip}. Skipping")
-            pass
+            return
         else:
             self.log_info(f"Found matching forward zone to be {self.forward_zone}")
 
@@ -238,26 +240,15 @@ class PowerdnsTaskIP(PowerdnsTask):
             self.log_info(
                 f"No FQDN could be determined for IP:{self.ip} (zone:{self.forward_zone}). Skipping"
             )
+            return
 
-        reverse_fqdn = self.make_reverse_domain()
-        self.log_debug(f"Reverse FQDN: {reverse_fqdn}")
-        self.reverse_zone = Zone.get_best_zone(str(reverse_fqdn))
-        if not self.reverse_zone:
-            self.log_info(f"No matching reverse zone for {self.ip} ({self.fqdn}). Skipping")
-            pass
-
-        self.log_debug(
-            f"Reverse zone found for IP:{self.ip} (zone:{self.reverse_zone})"
-        )
         name = self.fqdn.replace(self.forward_zone.name, "").rstrip(".")
-        fqdn = generate_fqdn(self.ip, self.reverse_zone)
-        custom_domain = get_custom_domain(self.ip)
 
         dns_record = DnsRecord(
             name=name,
             dns_type=FAMILY_TYPES[self.ip.family],
             data=str(self.ip.address.ip),
-            ttl=get_ip_ttl(self.ip) or self.reverse_zone.default_ttl,
+            ttl=get_ip_ttl(self.ip) or self.forward_zone.default_ttl,
             zone_name=self.forward_zone.name,
         )
         self.log_info(f"Forward record: {dns_record}")
@@ -267,14 +258,9 @@ class PowerdnsTaskIP(PowerdnsTask):
     def create_reverse(self) -> None:
         self.make_fqdn()
 
-        if not self.forward_zone:
-            self.log_info(f"No matching forward zone found for IP:{ip}. Skipping")
-        else:
-            self.log_info(f"Found matching forward zone to be {self.forward_zone}")
-
         if not self.fqdn:
             self.log_info(
-                f"No FQDN could be determined for IP:{ip} (zone:{self.forward_zone}). Skipping"
+                f"No FQDN could be determined for IP:{self.ip}. Skipping"
             )
 
         reverse_fqdn = self.make_reverse_domain()
@@ -304,15 +290,24 @@ class PowerdnsTaskIP(PowerdnsTask):
 
 
 class PowerdnsTaskFullSync(PowerdnsTask):
-    def __init__(self, job: Job) -> None:
+    def __init__(self, job: Job, zone_id: int = None) -> None:
         super().__init__(job)
-        self.zone: Zone = job.object
+        # Support both old way (job.object) and new way (zone_id parameter)
+        if zone_id:
+            self.zone: Zone = Zone.objects.get(pk=zone_id)
+        else:
+            self.zone: Zone = job.object
 
     @classmethod
-    def run_full_sync(cls, job: Job, *args, **kwargs) -> None:
-        task = cls(job)
+    def run_full_sync(cls, job: Job, zone_id: int = None, *args, **kwargs) -> None:
+        task = cls(job, zone_id=zone_id)
 
         try:
+            if not task.zone:
+                task.log_failure(f"Zone not found (zone_id={zone_id})")
+                task.job.terminate(status=JobStatusChoices.STATUS_ERRORED)
+                return
+
             task.log_debug(f"Starting sync for zone {task.zone}")
             task.job.start()
             if not task.zone.enabled:
@@ -365,7 +360,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             new_scheduled_time = job.scheduled + timedelta(minutes=job.interval)
             Job.enqueue(
                 cls.run_full_sync,
-                instance=job.object,
+                zone_id=task.zone.pk,
                 name=job.name,
                 user=job.user,
                 schedule_at=new_scheduled_time,
@@ -463,7 +458,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             self.log_debug(f"Forward FQDN: {self.fqdn}")
             self.log_debug(f"Self zone: {self.zone}")
 
-            if self.forward_zone and self.forward_zone == self.zone:
+            if self.forward_zone and self.forward_zone == self.zone and self.fqdn:
                 name = self.fqdn.replace(self.forward_zone.name, "").rstrip(".")
                 self.log_info(
                     f"Forward zone is matching self.zone, creating forward record for {name}"

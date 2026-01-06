@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from netbox.forms import NetBoxModelForm
+from utilities.forms.rendering import FieldSet
 from utilities.forms import add_blank_choice
 
 from ..choices import NamingDeviceChoices, NamingFgrpGroupChoices, NamingIpChoices
@@ -16,25 +17,13 @@ __all__ = (
 class ApiServerForm(NetBoxModelForm):
     """
     Form for creating or updating an API server.
-
-    Args:
-        self: The instance of the form.
-
-    Attributes:
-        fieldsets (tuple): The fieldsets for the form.
-
-    Meta:
-        model (ApiServer): The model associated with the form.
-        fields (list): The fields to include in the form.
-
     """
 
-
-class ApiServerForm(NetBoxModelForm):
     fieldsets = (
-        ("API Server", (
+        FieldSet(
             "name", "api_url", "api_token", "description", "enabled", "tags",
-        )),
+            name="API Server"
+        ),
     )
 
     class Meta:
@@ -65,19 +54,22 @@ class ZoneForm(NetBoxModelForm):
     )
 
     fieldsets = (
-        ("DNS Zone", (
+        FieldSet(
             "name", "description", "enabled", "api_servers", "is_default",
             "default_ttl",
-        )),
-        ("Matchers", (
+            name="DNS Zone"
+        ),
+        FieldSet(
             "match_ipaddress_tags", "match_interface_tags",
             "match_device_tags", "match_fhrpgroup_tags", "match_device_roles",
             "match_interface_mgmt_only",
-        )),
-        ("Naming methods", (
+            name="Matchers"
+        ),
+        FieldSet(
             "naming_ip_method", "naming_device_method", "naming_fgrpgroup_method",
-        )),
-        ("General", ("tags",)),
+            name="Naming methods"
+        ),
+        FieldSet("tags", name="General"),
     )
 
     class Meta:

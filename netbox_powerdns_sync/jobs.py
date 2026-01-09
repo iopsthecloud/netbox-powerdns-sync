@@ -46,7 +46,7 @@ class JobLoggingMixin:
     def log_debug(self, msg: str) -> None:
         if settings.DEBUG:
             logger.debug(msg)
-            self.log(LogLevelChoices.LOG_DEFAULT, msg)
+            self.log(LogLevelChoices.LOG_DEBUG, msg)
 
     def log_success(self, msg: str) -> None:
         logger.info(msg)

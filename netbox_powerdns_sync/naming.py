@@ -39,6 +39,8 @@ def generate_fqdn(ip: IPAddress, zone: Zone) -> str | None:
         method = getattr(zone, method_attr, None)
         if method:
             klass = _load_class(method)
+            if klass is None:
+                continue
             naming_method = klass(ip, zone)
             fqdn = naming_method.make_fqdn()
             if fqdn:

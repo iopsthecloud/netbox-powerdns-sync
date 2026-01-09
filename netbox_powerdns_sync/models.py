@@ -1,11 +1,10 @@
 import powerdns
-from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.forms import ValidationError
 from django.urls import reverse
 from taggit.managers import TaggableManager
-from core.models import Job
+from core.models import Job, ObjectType
 from dcim.models import DeviceRole, Interface
 from ipam.models import IPAddress, FHRPGroup
 from netbox.models import NetBoxModel
@@ -209,11 +208,10 @@ class Zone(NetBoxModel):
     def delete(self, *args, **kwargs):
         # delete any scheduled jobs for this zone
         if self.pk:
+            # Since we use zone_id instead of instance, search by name pattern
             jobs = Job.objects.filter(
-                object_type_id=ContentType.objects.get_for_model(self).pk,
-                object_id=self.pk,
                 status="scheduled",
-                name=JOB_NAME_SYNC
+                name__startswith=f"{JOB_NAME_SYNC} - {self.name}"
             )
             jobs.delete()
         return super().delete(*args, **kwargs)

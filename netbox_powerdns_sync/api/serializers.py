@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from netbox.api.serializers import NetBoxModelSerializer, NestedTagSerializer
-from dcim.api.serializers import NestedDeviceRoleSerializer
+from netbox.api.serializers import NetBoxModelSerializer
+from extras.api.serializers import TagSerializer
+from dcim.api.serializers import DeviceRoleSerializer
 
 from .nested_serializers import *
 from ..models import ApiServer, Zone
@@ -26,11 +27,11 @@ class ZoneSerializer(NetBoxModelSerializer):
     )
     is_reverse = serializers.BooleanField(read_only=True)
     api_servers = NestedApiServerSerializer(many=True, required=True)
-    match_ipaddress_tags = NestedTagSerializer(many=True, required=False)
-    match_interface_tags = NestedTagSerializer(many=True, required=False)
-    match_device_tags = NestedTagSerializer(many=True, required=False)
-    match_fhrpgroup_tags = NestedTagSerializer(many=True, required=False)
-    match_device_roles = NestedDeviceRoleSerializer(many=True, required=False)
+    match_ipaddress_tags = TagSerializer(many=True, required=False)
+    match_interface_tags = TagSerializer(many=True, required=False)
+    match_device_tags = TagSerializer(many=True, required=False)
+    match_fhrpgroup_tags = TagSerializer(many=True, required=False)
+    match_device_roles = DeviceRoleSerializer(many=True, required=False)
 
     class Meta:
         model = Zone

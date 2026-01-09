@@ -1,13 +1,11 @@
 from django.contrib import messages
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
-from core.models import Job
-from utilities.htmx import is_htmx
+from core.models import Job, ObjectType
 from utilities.rqworker import get_workers_for_queue
-from utilities.utils import normalize_querydict
+from utilities.querydict import normalize_querydict
 from utilities.views import ContentTypePermissionRequiredMixin
 
 from ..constants import JOB_NAME_DEVICE, JOB_NAME_INTERFACE, JOB_NAME_IP, JOB_NAME_SYNC
@@ -55,12 +53,18 @@ class SyncJobsView(ContentTypePermissionRequiredMixin, View):
         return "extras.view_script"
 
     def get(self, request):
-        query = Q(app_label="netbox_powerdns_sync", model="zone")|Q(app_label="ipam", model="ipaddress")
-        object_types = ContentType.objects.filter(query)
+        # Filter jobs by object_type OR by name pattern (for jobs without instance)
+        query = Q(app_label="netbox_powerdns_sync", model="zone") | Q(app_label="ipam", model="ipaddress")
+        object_types = ObjectType.objects.filter(query)
+
+        # Jobs with object_type (legacy) OR jobs matching our name patterns
+        # Include various sync job name patterns
         jobs = Job.objects.filter(
-            object_type__in=object_types,
-            name__in=(JOB_NAME_DEVICE, JOB_NAME_INTERFACE, JOB_NAME_IP, JOB_NAME_SYNC),
-        )
+            Q(object_type__in=object_types) |
+            Q(name__startswith=JOB_NAME_SYNC) |
+            Q(name__icontains="Sync") |  # Catch "Test Sync", "E2E Bootstrap Sync", etc.
+            Q(name__in=(JOB_NAME_DEVICE, JOB_NAME_INTERFACE, JOB_NAME_IP))
+        ).order_by("-created")
         jobs_table = SyncJobTable(
             data=jobs,
             orderable=False,
@@ -88,7 +92,7 @@ class SyncResultView(ContentTypePermissionRequiredMixin, View):
         #script = module.scripts[job.name]()
 
         # If this is an HTMX request, return only the result HTML
-        if is_htmx(request):
+        if request.htmx:
             response = render(request, "netbox_powerdns_sync/htmx/sync_result.html", {
                 #"script": script,
                 "job": job,
@@ -132,8 +136,8 @@ class SyncScheduleView(View):
             for zone in form.cleaned_data["zones"]:
                 Job.enqueue(
                     PowerdnsTaskFullSync.run_full_sync,
-                    instance=zone,
-                    name=JOB_NAME_SYNC,
+                    zone_id=zone.pk,
+                    name=f"{JOB_NAME_SYNC} - {zone.name}",
                     user=request.user,
                     schedule_at=form.cleaned_data.get("_schedule_at"),
                     interval=form.cleaned_data.get("_interval"),

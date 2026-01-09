@@ -1,5 +1,4 @@
-from extras.plugins import PluginMenuItem, PluginMenuButton
-from utilities.choices import ButtonColorChoices
+from netbox.plugins import PluginMenuItem, PluginMenuButton
 
 
 apiserver_buttons = [
@@ -7,7 +6,6 @@ apiserver_buttons = [
         link='plugins:netbox_powerdns_sync:apiserver_add',
         title='Add',
         icon_class='mdi mdi-plus-thick',
-        color=ButtonColorChoices.GREEN
     ),
 ]
 
@@ -16,7 +14,6 @@ zone_buttons = [
         link='plugins:netbox_powerdns_sync:zone_add',
         title='Add',
         icon_class='mdi mdi-plus-thick',
-        color=ButtonColorChoices.GREEN
     ),
 ]
 

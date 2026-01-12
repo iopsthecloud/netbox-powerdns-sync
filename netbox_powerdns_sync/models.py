@@ -68,8 +68,9 @@ class ApiServer(NetBoxModel):
 
     @property
     def api(self) -> powerdns.PDNSEndpoint|None:
-        if not self.api_url or not self.api_url:
+        if not self.api_url:
             return None
+        
         api_client = powerdns.PDNSApiClient(
             api_endpoint=self.api_url,
             api_key=self.api_token,

@@ -348,6 +348,12 @@ class PowerdnsTaskFullSync(PowerdnsTask):
         except PowerdnsSyncNoServers as e:
             task.log_failure(str(e))
             task.job.data = task.job.data or dict()
+            task.job.save()  # Sauvegarder les logs avant terminate
+            task.job.terminate(status=JobStatusChoices.STATUS_ERRORED)
+        except PowerdnsSyncServerZoneMissing as e:
+            task.log_failure(str(e))
+            task.job.data = task.job.data or dict()
+            task.job.save()  # Sauvegarder les logs avant terminate
             task.job.terminate(status=JobStatusChoices.STATUS_ERRORED)
         except Exception as e:
             stacktrace = traceback.format_exc()
@@ -355,6 +361,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                 f"An exception occurred: `{type(e).__name__}: {e}`\n```\n{stacktrace}\n```"
             )
             task.job.data = task.job.data or dict()
+            task.job.save()  # Sauvegarder les logs avant terminate
             task.job.terminate(status=JobStatusChoices.STATUS_ERRORED)
 
         # Schedule the next job if an interval has been set

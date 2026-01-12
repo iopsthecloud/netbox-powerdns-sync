@@ -136,8 +136,8 @@ class SyncScheduleView(View):
             for zone in form.cleaned_data["zones"]:
                 Job.enqueue(
                     PowerdnsTaskFullSync.run_full_sync,
-                    zone_id=zone.pk,
-                    name=f"{JOB_NAME_SYNC} - {zone.name}",
+                    instance=zone,
+                    name=JOB_NAME_SYNC,
                     user=request.user,
                     schedule_at=form.cleaned_data.get("_schedule_at"),
                     interval=form.cleaned_data.get("_interval"),

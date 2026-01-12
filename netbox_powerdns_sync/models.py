@@ -8,6 +8,7 @@ from core.models import Job, ObjectType
 from dcim.models import DeviceRole, Interface
 from ipam.models import IPAddress, FHRPGroup
 from netbox.models import NetBoxModel
+from netbox.models.features import JobsMixin
 from extras.models import Tag
 from virtualization.models import VMInterface
 
@@ -78,7 +79,7 @@ class ApiServer(NetBoxModel):
         return powerdns.PDNSEndpoint(api_client).servers[0]
 
 
-class Zone(NetBoxModel):
+class Zone(NetBoxModel, JobsMixin):
     name = models.CharField(
         help_text="Domain name of zone. Must be fully qualified.",
         max_length=200,
@@ -223,7 +224,7 @@ class Zone(NetBoxModel):
         name = make_canonical(name)
         best_match = None
         for zone in cls.objects.all():
-            if name.endswith(zone.name):
+            if name.endswith(make_canonical(zone.name)):
                 if not best_match or len(best_match.name) < len(zone.name):
                     best_match = zone
         return best_match

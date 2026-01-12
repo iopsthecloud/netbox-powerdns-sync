@@ -63,7 +63,9 @@ class SyncJobTable(JobTable):
     )
 
     class Meta(JobTable.Meta):
-        pass
+        default_columns = (
+            "pk", "name", "object_type", "object", "status", "created", "user",
+        )
 
 
 class ZoneTable(NetBoxTable):

@@ -42,6 +42,7 @@ class JobLoggingMixin:
         )
         data["log"] = logs
         self.job.data = data
+        self.job.save()
 
     def log_debug(self, msg: str) -> None:
         if settings.DEBUG:
@@ -53,27 +54,18 @@ class JobLoggingMixin:
         self.log(LogLevelChoices.LOG_SUCCESS, msg)
 
     def log_info(self, msg: str) -> None:
-    # Vérifier si Django est en mode DEBUG ou si le niveau de log est INFO ou inférieur
         if settings.DEBUG or logger.isEnabledFor(logging.INFO):
-            # Log dans le logger
             logger.info(msg)
-            # Ajouter le message au log de la tâche
             self.log(LogLevelChoices.LOG_INFO, msg)
 
     def log_warning(self, msg: str) -> None:
-    # Vérifier si Django est en mode DEBUG ou si le niveau de log est WARNING ou inférieur
         if settings.DEBUG or logger.isEnabledFor(logging.WARNING):
-            # Log dans le logger
             logger.warning(msg)
-            # Ajouter le message au log de la tâche
             self.log(LogLevelChoices.LOG_WARNING, msg)
 
     def log_failure(self, msg: str) -> None:
-    # Vérifier si Django est en mode DEBUG ou si le niveau de log est ERROR ou inférieur
         if settings.DEBUG or logger.isEnabledFor(logging.ERROR):
-            # Log dans le logger
             logger.error(msg)
-            # Ajouter le message au log de la tâche
             self.log(LogLevelChoices.LOG_FAILURE, msg)
 
 
@@ -91,7 +83,8 @@ class PowerdnsTask(JobLoggingMixin):
     def get_pdns_servers_for_zone(self, zone_name: str) -> list[ApiServer]:
         if not zone_name:
             return []
-        zone = Zone.objects.filter(name=zone_name).first()
+        # Support names with or without trailing dot
+        zone = Zone.objects.filter(name=zone_name.rstrip(".")).first()
         if not zone:
             return []
         return zone.api_servers.filter(enabled=True)
@@ -157,7 +150,7 @@ class PowerdnsTask(JobLoggingMixin):
             )
 
         for api_server in self.get_pdns_servers_for_zone(dns_record.zone_name):
-            zone = api_server.api.get_zone(dns_record.zone_name)
+            zone = api_server.api.get_zone(make_canonical(dns_record.zone_name))
             if not zone:
                 raise PowerdnsSyncServerZoneMissing(
                     f"Zone {dns_record.zone_name} not found on server {api_server}"
@@ -179,7 +172,7 @@ class PowerdnsTask(JobLoggingMixin):
                 f"No valid servers found for zone {dns_record.zone_name}"
             )
         for api_server in self.get_pdns_servers_for_zone(dns_record.zone_name):
-            zone = api_server.api.get_zone(dns_record.zone_name)
+            zone = api_server.api.get_zone(make_canonical(dns_record.zone_name))
             if not zone:
                 raise PowerdnsSyncServerZoneMissing(
                     f"Zone {dns_record.zone_name} not found on server {api_server}"
@@ -293,8 +286,7 @@ class PowerdnsTaskIP(PowerdnsTask):
 class PowerdnsTaskFullSync(PowerdnsTask):
     def __init__(self, job: Job, zone_id: int = None) -> None:
         super().__init__(job)
-        # Support both old way (job.object) and new way (zone_id parameter)
-        # Use filter().first() instead of get() to avoid DoesNotExist exception
+
         if zone_id:
             self.zone: Zone = Zone.objects.filter(pk=zone_id).first()
         else:
@@ -302,6 +294,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
 
     @classmethod
     def run_full_sync(cls, job: Job, zone_id: int = None, *args, **kwargs) -> None:
+        """Runs full synchronization, schedules next job if configured"""
         task = cls(job, zone_id=zone_id)
 
         try:
@@ -369,7 +362,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             new_scheduled_time = job.scheduled + timedelta(minutes=job.interval)
             Job.enqueue(
                 cls.run_full_sync,
-                zone_id=task.zone.pk,
+                instance=task.zone,
                 name=job.name,
                 user=job.user,
                 schedule_at=new_scheduled_time,
@@ -438,7 +431,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
         query_zone |= Q(
             vminterface__virtual_machine__role__in=self.zone.match_device_roles.all()
         )
-        results = IPAddress.objects.filter(query_zone)
+        results = IPAddress.objects.filter(query_zone).distinct()
         if self.zone.match_interface_mgmt_only:
             results = results.filter(interface__mgmt_only=True)
         return results
@@ -539,7 +532,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
         if not servers:
             raise PowerdnsSyncNoServers(f"No valid servers found for zone {self.zone}")
         for api_server in servers:
-            pdns_zone = api_server.api.get_zone(self.zone.name)
+            pdns_zone = api_server.api.get_zone(make_canonical(self.zone.name))
             if not pdns_zone:
                 raise PowerdnsSyncServerZoneMissing(
                     f"Zone {self.zone.name} not found on server {api_server}"

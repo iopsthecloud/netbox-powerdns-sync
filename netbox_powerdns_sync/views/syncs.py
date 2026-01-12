@@ -84,26 +84,39 @@ class SyncResultView(ContentTypePermissionRequiredMixin, View):
         return "extras.view_script"
 
     def get(self, request, job_pk):
-        #object_type = ContentType.objects.get_by_natural_key(app_label="extras", model="scriptmodule")
-        #job = get_object_or_404(Job.objects.all(), pk=job_pk, object_type=object_type)
         job = get_object_or_404(Job.objects.all(), pk=job_pk)
 
-        #module = job.object
-        #script = module.scripts[job.name]()
+        # Filter logs by level if requested
+        log_level = request.GET.get("level")
+        logs = job.data.get("log", []) if job.data else []
+        
+        if log_level:
+            level_map = {
+                "0": ["debug", "info", "success", "warning", "failure"],
+                "1": ["info", "success", "warning", "failure"],
+                "2": ["success", "warning", "failure"],
+                "3": ["warning", "failure"],
+                "4": ["failure"],
+            }
+            allowed_statuses = level_map.get(log_level, [])
+            if allowed_statuses:
+                logs = [log for log in logs if log.get("status") in allowed_statuses]
 
         # If this is an HTMX request, return only the result HTML
         if request.htmx:
             response = render(request, "netbox_powerdns_sync/htmx/sync_result.html", {
-                #"script": script,
                 "job": job,
+                "logs": logs,
+                "selected_level": log_level or "0",
             })
             if job.completed or not job.started:
                 response.status_code = 286
             return response
 
         return render(request, "netbox_powerdns_sync/sync_result.html", {
-            #"script": script,
             "job": job,
+            "logs": logs,
+            "selected_level": log_level or "0",
         })
 
 

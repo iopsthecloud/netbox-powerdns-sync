@@ -32,17 +32,22 @@ logger = logging.getLogger("netbox.netbox_powerdns_sync.jobs")
 
 class JobLoggingMixin:
     def log(self, level: str, msg: str) -> None:
-        data = self.job.data or {}
-        logs = data.get("log", [])
-        logs.append(
+        if not hasattr(self, "_log_buffer"):
+            self._log_buffer = self.job.data.get("log", []) if self.job.data else []
+
+        self._log_buffer.append(
             {
                 "message": msg,
                 "status": level,
             }
         )
-        data["log"] = logs
-        self.job.data = data
-        self.job.save()
+
+    def flush_logs(self) -> None:
+        if hasattr(self, "_log_buffer"):
+            data = self.job.data or {}
+            data["log"] = self._log_buffer
+            self.job.data = data
+            self.job.save()
 
     def log_debug(self, msg: str) -> None:
         if settings.DEBUG:
@@ -52,6 +57,7 @@ class JobLoggingMixin:
     def log_success(self, msg: str) -> None:
         logger.info(msg)
         self.log(LogLevelChoices.LOG_SUCCESS, msg)
+        self.flush_logs()
 
     def log_info(self, msg: str) -> None:
         if settings.DEBUG or logger.isEnabledFor(logging.INFO):
@@ -62,11 +68,13 @@ class JobLoggingMixin:
         if settings.DEBUG or logger.isEnabledFor(logging.WARNING):
             logger.warning(msg)
             self.log(LogLevelChoices.LOG_WARNING, msg)
+            self.flush_logs()
 
     def log_failure(self, msg: str) -> None:
         if settings.DEBUG or logger.isEnabledFor(logging.ERROR):
             logger.error(msg)
             self.log(LogLevelChoices.LOG_FAILURE, msg)
+            self.flush_logs()
 
 
 class PowerdnsTask(JobLoggingMixin):
@@ -145,6 +153,7 @@ class PowerdnsTask(JobLoggingMixin):
         servers = self.get_pdns_servers_for_zone(dns_record.zone_name)
 
         if not servers:
+            self.log_debug(f"create_record: No servers found for zone {dns_record.zone_name}")
             raise PowerdnsSyncNoServers(
                 f"No valid servers found for zone {dns_record.zone_name}"
             )
@@ -168,10 +177,11 @@ class PowerdnsTask(JobLoggingMixin):
     def delete_record(self, dns_record: DnsRecord) -> None:
         servers = self.get_pdns_servers_for_zone(dns_record.zone_name)
         if not servers:
+            self.log_debug(f"delete_record: No servers found for zone {dns_record.zone_name}")
             raise PowerdnsSyncNoServers(
                 f"No valid servers found for zone {dns_record.zone_name}"
             )
-        for api_server in self.get_pdns_servers_for_zone(dns_record.zone_name):
+        for api_server in servers:
             zone = api_server.api.get_zone(make_canonical(dns_record.zone_name))
             if not zone:
                 raise PowerdnsSyncServerZoneMissing(
@@ -211,6 +221,7 @@ class PowerdnsTaskIP(PowerdnsTask):
             task.create_forward()
             task.log_debug("Creating reverse record")
             task.create_reverse()
+            task.flush_logs()
             task.log_success("Finished")
             task.job.terminate()
         except Exception as e:
@@ -227,7 +238,7 @@ class PowerdnsTaskIP(PowerdnsTask):
             self.log_info(f"No matching forward zone found for IP:{self.ip}. Skipping")
             return
         else:
-            self.log_info(f"Found matching forward zone to be {self.forward_zone}")
+            self.log_debug(f"Found matching forward zone to be {self.forward_zone}")
 
         if not self.fqdn:
             self.log_info(
@@ -312,11 +323,13 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                 task.job.terminate()
                 return
             task.log_debug("Loading Netbox records")
-            netbox_records = task.load_netbox_records()
+            netbox_records, ignored_netbox_count = task.load_netbox_records()
+            task.flush_logs()
             task.log_debug("Loading Powerdns records")
-            pdns_records, pdns_exluded_records = task.load_pdns_records()
+            pdns_records, pdns_excluded_records, pdns_unmanaged_records = task.load_pdns_records()
+            task.flush_logs()
             task.log_info(
-                f"Found record count: netbox:{len(netbox_records)} pdns:{len(pdns_records)} pdns excluded:{len(pdns_exluded_records)}"
+                f"Found record count: netbox:{len(netbox_records)} pdns:{len(pdns_records)} pdns unmanaged:{len(pdns_unmanaged_records)} pdns excluded:{len(pdns_excluded_records)}"
             )
             to_delete = pdns_records - netbox_records
             to_create = netbox_records - pdns_records
@@ -331,12 +344,12 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                     f"Check if {record.get_fqdn()} is in pdns_excluded_records => {excluded_record_type}"
                 )
                 if excluded_record_type:
-                    task.log_info(
+                    task.log_debug(
                         f"Record {record.name} of type {excluded_record_type} skipped because it was found in pdns_excluded_records."
                     )
                 else:
                     task.create_record(record)
-            task.log_success("Finished")
+            task.flush_logs()
             task.job.terminate()
         except PowerdnsSyncNoServers as e:
             task.log_failure(str(e))
@@ -450,7 +463,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             if not self.forward_zone:
                 self.log_info(f"No matching forward zone found for IP:{ip}. Skipping")
             else:
-                self.log_info(f"Found matching forward zone to be {self.forward_zone}")
+                self.log_debug(f"Found matching forward zone to be {self.forward_zone}")
 
             if not self.fqdn:
                 self.log_info(
@@ -462,7 +475,7 @@ class PowerdnsTaskFullSync(PowerdnsTask):
 
             if self.forward_zone and self.forward_zone == self.zone and self.fqdn:
                 name = self.fqdn.replace(self.forward_zone.name, "").rstrip(".")
-                self.log_info(
+                self.log_debug(
                     f"Forward zone is matching self.zone, creating forward record for {name}"
                 )
                 records.add(

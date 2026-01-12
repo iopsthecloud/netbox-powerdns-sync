@@ -37,7 +37,25 @@
   </ul>
   <div class="tab-content mb-3">
     <div role="tabpanel" class="tab-pane active" id="log">
-      <div class="col col-md-12"{% if not job.completed %} hx-get="{% url 'plugins:netbox_powerdns_sync:sync_result' job_pk=job.pk %}" hx-trigger="every 5s"{% endif %}>
+      <div class="card mb-3">
+        <div class="card-body">
+          <form method="get" class="row g-3 align-items-center" hx-get="{% url 'plugins:netbox_powerdns_sync:sync_result' job_pk=job.pk %}" hx-target="#sync-result-content" hx-push-url="true">
+            <div class="col-auto">
+              <label for="level" class="col-form-label">Min Level:</label>
+            </div>
+            <div class="col-auto">
+              <select name="level" id="level" class="form-select" onchange="this.form.dispatchEvent(new Event('submit'))">
+                <option value="0" {% if selected_level == "0" %}selected{% endif %}>Debug (All)</option>
+                <option value="1" {% if selected_level == "1" %}selected{% endif %}>Info</option>
+                <option value="2" {% if selected_level == "2" %}selected{% endif %}>Success</option>
+                <option value="3" {% if selected_level == "3" %}selected{% endif %}>Warning</option>
+                <option value="4" {% if selected_level == "4" %}selected{% endif %}>Failure</option>
+              </select>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div id="sync-result-content" class="col col-md-12"{% if not job.completed %} hx-get="{% url 'plugins:netbox_powerdns_sync:sync_result' job_pk=job.pk %}" hx-trigger="every 5s" hx-include="[name='level']"{% endif %}>
         {% include 'netbox_powerdns_sync/htmx/sync_result.html' %}
       </div>
     </div>

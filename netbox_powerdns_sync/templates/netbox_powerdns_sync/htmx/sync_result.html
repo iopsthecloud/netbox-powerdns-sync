@@ -25,7 +25,7 @@
           <th>Level</th>
           <th>Message</th>
         </tr>
-        {% for log in job.data.log %}
+        {% for log in logs %}
           <tr>
             <td>{{ forloop.counter }}</td>
             <td>{% log_level log.status %}</td>

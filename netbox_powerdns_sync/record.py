@@ -13,7 +13,7 @@ class DnsRecord:
         self.ttl = ttl
 
     @classmethod
-    def from_pdns_record(cls, record:dict, zone:powerdns.interface.PDNSZone) -> tuple['DnsRecord']:
+    def from_pdns_record(cls, record:dict, zone:powerdns.interface.PDNSZone) -> set['DnsRecord']:
         dns_records = set()
         if not can_manage_record(record):
             return set()

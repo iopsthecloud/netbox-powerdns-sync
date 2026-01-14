@@ -7,8 +7,8 @@ class NetBoxPowerdnsSyncConfig(PluginConfig):
     verbose_name = "NetBox PowerDNS sync"
     version = __version__
     description = "Sync DNS records in PowerDNS with NetBox"
-    author = "Matej Vadnjal"
-    author_email = "matej.vadnjal@arnes.si"
+    author = "Renaud RAKOTOMALALA"
+    author_email = "renaud.rakotomalala@alterway?.fr"
     base_url = "powerdns-sync"
     min_version = "4.4.0"
     default_settings = {

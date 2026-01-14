@@ -20,16 +20,6 @@ class NetBoxPowerdnsSyncConfig(PluginConfig):
 
     def ready(self):
         super().ready()
-
-        from netbox.registry import registry
-        from .models import Zone
-
-        # Enregistrement explicite pour autoriser l'assignation de Jobs aux Zones
-        # Compatible avec les versions où registry est un dict ou un callable
-        reg = registry() if callable(registry) else registry
-        if 'model_features' in reg and 'jobs' in reg['model_features']:
-            reg['model_features']['jobs'].add(Zone)
-
         import netbox_powerdns_sync.signals
 
 config = NetBoxPowerdnsSyncConfig

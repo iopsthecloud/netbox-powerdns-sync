@@ -77,6 +77,18 @@ class SyncJobsView(ContentTypePermissionRequiredMixin, View):
             "tab": "jobs",
         })
 
+    def post(self, request):
+        if not request.user.has_perm("core.delete_job"):
+            return HttpResponseForbidden()
+
+        if "delete" in request.POST:
+            job_pk = request.POST.get("delete")
+            job = get_object_or_404(Job.objects.all(), pk=job_pk)
+            job.delete()
+            messages.success(request, f"Job {job_pk} deleted successfully.")
+
+        return redirect("plugins:netbox_powerdns_sync:sync_jobs")
+
 
 class SyncResultView(ContentTypePermissionRequiredMixin, View):
 
@@ -84,26 +96,39 @@ class SyncResultView(ContentTypePermissionRequiredMixin, View):
         return "extras.view_script"
 
     def get(self, request, job_pk):
-        #object_type = ContentType.objects.get_by_natural_key(app_label="extras", model="scriptmodule")
-        #job = get_object_or_404(Job.objects.all(), pk=job_pk, object_type=object_type)
         job = get_object_or_404(Job.objects.all(), pk=job_pk)
 
-        #module = job.object
-        #script = module.scripts[job.name]()
+        # Filter logs by level if requested
+        log_level = request.GET.get("level")
+        logs = job.data.get("log", []) if job.data else []
+        
+        if log_level:
+            level_map = {
+                "0": ["default", "debug", "info", "success", "warning", "failure"],  # Include "default" for backward compatibility
+                "1": ["info", "success", "warning", "failure"],
+                "2": ["success", "warning", "failure"],
+                "3": ["warning", "failure"],
+                "4": ["failure"],
+            }
+            allowed_statuses = level_map.get(log_level, [])
+            if allowed_statuses:
+                logs = [log for log in logs if log.get("status") in allowed_statuses]
 
         # If this is an HTMX request, return only the result HTML
         if request.htmx:
             response = render(request, "netbox_powerdns_sync/htmx/sync_result.html", {
-                #"script": script,
                 "job": job,
+                "logs": logs,
+                "selected_level": log_level or "0",
             })
             if job.completed or not job.started:
                 response.status_code = 286
             return response
 
         return render(request, "netbox_powerdns_sync/sync_result.html", {
-            #"script": script,
             "job": job,
+            "logs": logs,
+            "selected_level": log_level or "0",
         })
 
 
@@ -136,8 +161,8 @@ class SyncScheduleView(View):
             for zone in form.cleaned_data["zones"]:
                 Job.enqueue(
                     PowerdnsTaskFullSync.run_full_sync,
-                    zone_id=zone.pk,
-                    name=f"{JOB_NAME_SYNC} - {zone.name}",
+                    instance=zone,
+                    name=JOB_NAME_SYNC,
                     user=request.user,
                     schedule_at=form.cleaned_data.get("_schedule_at"),
                     interval=form.cleaned_data.get("_interval"),

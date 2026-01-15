@@ -45,6 +45,17 @@ class ApiServerEditView(generic.ObjectEditView):
     queryset = ApiServer.objects.all()
     form = forms.ApiServerForm
 
+    def dispatch(self, request, *args, **kwargs):
+        # We need to pass the request object to the form to display connection warnings.
+        # Since ObjectEditView doesn't do this by default, we wrap the form class.
+        class FormWrapper(forms.ApiServerForm):
+            def __init__(self, *args, **kwargs):
+                kwargs.setdefault('request', request)
+                super().__init__(*args, **kwargs)
+        self.form = FormWrapper
+
+        return super().dispatch(request, *args, **kwargs)
+
 
 @register_model_view(ApiServer, 'delete')
 class ApiServerDeleteView(generic.ObjectDeleteView):

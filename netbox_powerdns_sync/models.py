@@ -8,6 +8,7 @@ from core.models import Job, ObjectType
 from dcim.models import DeviceRole, Interface
 from ipam.models import IPAddress, FHRPGroup
 from netbox.models import NetBoxModel
+from netbox.models.features import JobsMixin
 from extras.models import Tag
 from virtualization.models import VMInterface
 
@@ -68,8 +69,9 @@ class ApiServer(NetBoxModel):
 
     @property
     def api(self) -> powerdns.PDNSEndpoint|None:
-        if not self.api_url or not self.api_url:
+        if not self.api_url:
             return None
+        
         api_client = powerdns.PDNSApiClient(
             api_endpoint=self.api_url,
             api_key=self.api_token,
@@ -77,7 +79,7 @@ class ApiServer(NetBoxModel):
         return powerdns.PDNSEndpoint(api_client).servers[0]
 
 
-class Zone(NetBoxModel):
+class Zone(NetBoxModel, JobsMixin):
     name = models.CharField(
         help_text="Domain name of zone. Must be fully qualified.",
         max_length=200,
@@ -208,10 +210,12 @@ class Zone(NetBoxModel):
     def delete(self, *args, **kwargs):
         # delete any scheduled jobs for this zone
         if self.pk:
-            # Since we use zone_id instead of instance, search by name pattern
+            from django.contrib.contenttypes.models import ContentType
+            zone_ct = ContentType.objects.get_for_model(self)
             jobs = Job.objects.filter(
                 status="scheduled",
-                name__startswith=f"{JOB_NAME_SYNC} - {self.name}"
+                object_type=zone_ct,
+                object_id=self.pk
             )
             jobs.delete()
         return super().delete(*args, **kwargs)
@@ -222,7 +226,7 @@ class Zone(NetBoxModel):
         name = make_canonical(name)
         best_match = None
         for zone in cls.objects.all():
-            if name.endswith(zone.name):
+            if name.endswith(make_canonical(zone.name)):
                 if not best_match or len(best_match.name) < len(zone.name):
                     best_match = zone
         return best_match

@@ -59,19 +59,25 @@ def get_ip_ttl(ip: IPAddress) -> int | None:
 
 def can_manage_record(record: dict | RRSet) -> bool:
     """
-    Check if record from powerdns is of supported type and if using comments,
-    check if it's correct
+    Check if record from powerdns is of supported type
     """
-    comment = get_plugin_config(PLUGIN_NAME, "powerdns_managed_record_comment")
     managed_types = [PTR_TYPE] + list(FAMILY_TYPES.values())
     if record["type"] not in managed_types:
         return False
-    if comment:
-        for record_comment in record["comments"]:
-            if record_comment["content"] == comment:
-                return True
-        return False
     return True
+
+
+def has_managed_comment(record: dict | RRSet) -> bool:
+    """
+    Check if record has the correct management comment
+    """
+    comment = get_plugin_config(PLUGIN_NAME, "powerdns_managed_record_comment")
+    if not comment:
+        return True
+    for record_comment in record.get("comments", []):
+        if record_comment.get("content") == comment:
+            return True
+    return False
 
 
 def get_managed_comment() -> list:

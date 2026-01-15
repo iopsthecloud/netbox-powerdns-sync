@@ -1,19 +1,19 @@
 import powerdns
 
-from .utils import can_manage_record, get_managed_comment
+from .utils import can_manage_record, get_managed_comment, make_canonical
 
 
 class DnsRecord:
     def __init__(self, name:str, data:str, dns_type:str, zone_name:str, ttl:int):
-        self.name = name.replace(zone_name, "")
+        self.zone_name = make_canonical(zone_name)
+        self.name = name.replace(self.zone_name, "")
         self.name = self.name.rstrip(".")
         self.data = data
         self.dns_type = dns_type
         self.ttl = ttl
-        self.zone_name = zone_name
 
     @classmethod
-    def from_pdns_record(cls, record:dict, zone:powerdns.interface.PDNSZone) -> tuple['DnsRecord']:
+    def from_pdns_record(cls, record:dict, zone:powerdns.interface.PDNSZone) -> set['DnsRecord']:
         dns_records = set()
         if not can_manage_record(record):
             return set()

@@ -104,7 +104,7 @@ class SyncResultView(ContentTypePermissionRequiredMixin, View):
         
         if log_level:
             level_map = {
-                "0": ["debug", "info", "success", "warning", "failure"],
+                "0": ["default", "debug", "info", "success", "warning", "failure"],  # Include "default" for backward compatibility
                 "1": ["info", "success", "warning", "failure"],
                 "2": ["success", "warning", "failure"],
                 "3": ["warning", "failure"],

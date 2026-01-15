@@ -210,10 +210,12 @@ class Zone(NetBoxModel, JobsMixin):
     def delete(self, *args, **kwargs):
         # delete any scheduled jobs for this zone
         if self.pk:
-            # Since we use zone_id instead of instance, search by name pattern
+            from django.contrib.contenttypes.models import ContentType
+            zone_ct = ContentType.objects.get_for_model(self)
             jobs = Job.objects.filter(
                 status="scheduled",
-                name__startswith=f"{JOB_NAME_SYNC} - {self.name}"
+                object_type=zone_ct,
+                object_id=self.pk
             )
             jobs.delete()
         return super().delete(*args, **kwargs)

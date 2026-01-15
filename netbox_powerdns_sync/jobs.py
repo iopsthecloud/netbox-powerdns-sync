@@ -429,8 +429,11 @@ class PowerdnsTaskFullSync(PowerdnsTask):
         self.log_debug(f"Zone canonical: {zone_canonical}")
         self.log_debug(f"Zone domain: {zone_domain}")
 
-        # filter for FQDN names (ip.dns_name, Device, VM, FHRPGroup)
-        query_zone = Q(dns_name__endswith=zone_canonical) | Q(
+        # START WITH AN EMPTY Q to allow multiple matching strategies
+        query_zone = Q()
+
+        # Domain-based matching (Keep for cases where dns_name is already set)
+        query_zone |= Q(dns_name__endswith=zone_canonical) | Q(
             dns_name__endswith=zone_domain
         )
         query_zone |= Q(interface__device__name__endswith=zone_canonical) | Q(
@@ -449,21 +452,18 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             self.log_debug(f"Zone is reverse zone, looking for prefixes")
             network_cidr = None
 
-            # Mapping of parts length to CIDR suffix and base IP format
-            parts_length_to_cidr = {
-                5: ('/24', '{2}.{1}.{0}.0'),
-                4: ('/16', '{1}.{0}.0.0'),
-                3: ('/8', '{0}.0.0.0')
-            }
-
-            cidr_suffix, base_ip_format = parts_length_to_cidr.get(len(parts), (None, None))
-            if cidr_suffix and base_ip_format:
-                base_ip = base_ip_format.format(*parts)
-                network_cidr = IPNetwork(f"{base_ip}{cidr_suffix}")
+            # More robust extraction of IPv4 parts for reverse zones (Fix for 4.4)
+            ipv4_parts = [p for p in parts if p.isdigit()]
+            if len(ipv4_parts) == 3: # /24
+                network_cidr = IPNetwork(f"{ipv4_parts[2]}.{ipv4_parts[1]}.{ipv4_parts[0]}.0/24")
+            elif len(ipv4_parts) == 2: # /16
+                network_cidr = IPNetwork(f"{ipv4_parts[1]}.{ipv4_parts[0]}.0.0/16")
+            elif len(ipv4_parts) == 1: # /8
+                network_cidr = IPNetwork(f"{ipv4_parts[0]}.0.0.0/8")
 
             if network_cidr:
                 self.log_debug(
-                    f"Prefix found, going to check for hosts between {network_cidr.network} and {network_cidr.broadcast}"
+                    f"Prefix found: {network_cidr}. Checking for hosts."
                 )
                 # Query any address within the CIDR range
                 query_zone |= Q(address__net_host_contained=network_cidr)
@@ -499,23 +499,10 @@ class PowerdnsTaskFullSync(PowerdnsTask):
             self.log_debug(f"Checking IP: {ip}")
             self.init_attrs()
             self.ip = ip
+            
+            # --- PROCESS FORWARD ---
             self.make_fqdn()
-            if not self.forward_zone:
-                self.log_info(f"No matching forward zone found for IP:{ip}. Skipping")
-                ignored_count += 1
-                continue
-            else:
-                self.log_debug(f"Found matching forward zone to be {self.forward_zone}")
-
-            if not self.fqdn:
-                self.log_info(
-                    f"No FQDN could be determined for IP:{ip} (zone:{self.forward_zone}). Skipping"
-                )
-                ignored_count += 1
-
-            self.log_debug(f"Forward FQDN: {self.fqdn}")
-            self.log_debug(f"Self zone: {self.zone}")
-
+            
             if self.forward_zone and self.forward_zone == self.zone and self.fqdn:
                 name = self.fqdn.replace(self.forward_zone.name, "").rstrip(".")
                 self.log_debug(
@@ -530,59 +517,41 @@ class PowerdnsTaskFullSync(PowerdnsTask):
                         ttl=get_ip_ttl(ip) or self.forward_zone.default_ttl,
                     )
                 )
-            elif self.forward_zone:
-                self.log_debug(
-                    f"Forward zone {self.forward_zone} does NOT match current zone {self.zone} for IP {ip}"
-                )
 
+            # --- PROCESS REVERSE ---
             if self.zone.is_reverse:
                 reverse_fqdn = self.make_reverse_domain()
                 self.log_debug(f"Reverse FQDN: {reverse_fqdn}")
-                self.reverse_zone = Zone.get_best_zone(reverse_fqdn)
-                self.log_debug(
-                    f"Reverse zone found for IP:{ip} (zone:{self.reverse_zone})"
-                )
-
-                if not self.reverse_zone:
-                    self.log_info(
-                        f"No matching reverse zone for {ip} ({self.fqdn}). Skipping"
-                    )
-                    ignored_count += 1
-                    continue
-
-                if self.reverse_zone == self.zone:
-                    name = reverse_fqdn.replace(self.reverse_zone.name, "").rstrip(".")
-                    self.log_debug(
-                        f"Reverse name: {name} - {self.fqdn} - {self.reverse_zone.name}"
-                    )
-                    fqdn = generate_fqdn(self.ip, self.reverse_zone)
-                    custom_domain = get_custom_domain(self.ip)
-
-                    if not (fqdn or custom_domain):
-                        self.log_info(
-                            f"Skipping reverse record for {ip} because of missing fqdn or custom domain"
-                        )
-                        ignored_count += 1
-                        continue
-
-                    self.log_debug(f"Targeting reverse record: {name} - {fqdn} - {custom_domain} (zone: {self.reverse_zone})")
-
-                    if fqdn and fqdn.endswith('.'):
-                        dns_data = make_canonical(f"{fqdn}")
+                
+                # Check if this IP's reverse address belongs to the current zone
+                if reverse_fqdn.endswith(make_canonical(self.zone.name)):
+                    name = reverse_fqdn.replace(self.zone.name, "").rstrip(".")
+                    
+                    # PRIORITY: Use NetBox dns_name if it exists (allows external domains)
+                    dns_data = None
+                    if ip.dns_name:
+                        dns_data = make_canonical(ip.dns_name)
                     else:
-                        dns_data = make_canonical(f"{fqdn or ''}{custom_domain or ''}")
+                        # Fallback to generated FQDN if a forward zone is matched
+                        fqdn = generate_fqdn(self.ip, self.forward_zone) if self.forward_zone else None
+                        custom_domain = get_custom_domain(self.ip)
+                        if fqdn or custom_domain:
+                            dns_data = make_canonical(f"{fqdn or ''}{custom_domain or ''}")
 
-                    records.add(
-                        DnsRecord(
-                            name=name,
-                            dns_type=PTR_TYPE,
-                            data = dns_data,
-                            ttl=get_ip_ttl(self.ip) or self.reverse_zone.default_ttl,
-                            zone_name=self.reverse_zone.name,
+                    if dns_data:
+                        self.log_debug(f"Targeting reverse record: {name} -> {dns_data}")
+                        records.add(
+                            DnsRecord(
+                                name=name,
+                                dns_type=PTR_TYPE,
+                                data=dns_data,
+                                ttl=get_ip_ttl(self.ip) or self.zone.default_ttl,
+                                zone_name=self.zone.name,
+                            )
                         )
-                    )
-
-                    set_dns_name(str(self.ip), dns_data)
+                    else:
+                        self.log_info(f"Skipping reverse for {ip}: no dns_name and no FQDN could be generated")
+                        ignored_count += 1
 
         return records, ignored_count
 

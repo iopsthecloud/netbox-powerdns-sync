@@ -13,6 +13,15 @@ __all__ = (
 
 SYNC_URL_ID = """<a href="{% url 'plugins:netbox_powerdns_sync:sync_result' job_pk=value %}">{{ value }}</a>"""
 SYNC_URL_NAME = """<a href="{% url 'plugins:netbox_powerdns_sync:sync_result' job_pk=record.id %}">{{ value }}</a>"""
+SYNC_JOB_DELETE_BUTTON = """
+<form action="{% url 'plugins:netbox_powerdns_sync:sync_jobs' %}" method="post" style="display: inline">
+  {% csrf_token %}
+  <input type="hidden" name="delete" value="{{ record.pk }}">
+  <button type="submit" class="btn btn-sm btn-danger" title="Delete job" onclick="return confirm('Are you sure you want to delete this job?')">
+    <i class="mdi mdi-trash-can-outline"></i>
+  </button>
+</form>
+"""
 DEVICE_ROLE_COLUMN = """
 {% for role in value.all %}
     {% include 'inc/badge.html' with label=role color=role.color url=role.get_absolute_url %}
@@ -61,10 +70,14 @@ class SyncJobTable(JobTable):
     name = tables.TemplateColumn(
         template_code=SYNC_URL_NAME,
     )
+    actions = tables.TemplateColumn(
+        template_code=SYNC_JOB_DELETE_BUTTON,
+        verbose_name="",
+    )
 
     class Meta(JobTable.Meta):
         default_columns = (
-            "pk", "name", "object_type", "object", "status", "created", "user",
+            "id", "object_type", "object", "name", "status", "created", "started", "completed", "user", "actions"
         )
 
 

@@ -77,6 +77,18 @@ class SyncJobsView(ContentTypePermissionRequiredMixin, View):
             "tab": "jobs",
         })
 
+    def post(self, request):
+        if not request.user.has_perm("core.delete_job"):
+            return HttpResponseForbidden()
+
+        if "delete" in request.POST:
+            job_pk = request.POST.get("delete")
+            job = get_object_or_404(Job.objects.all(), pk=job_pk)
+            job.delete()
+            messages.success(request, f"Job {job_pk} deleted successfully.")
+
+        return redirect("plugins:netbox_powerdns_sync:sync_jobs")
+
 
 class SyncResultView(ContentTypePermissionRequiredMixin, View):
 

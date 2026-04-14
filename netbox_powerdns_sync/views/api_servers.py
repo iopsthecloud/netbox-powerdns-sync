@@ -30,7 +30,7 @@ class ApiServerView(generic.ObjectView):
 
     def get_extra_context(self, request, instance):
         zones = Zone.objects.restrict(request.user, 'view').filter(api_servers=instance)
-        zone_table = tables.ZoneTable(zones, user=request.user)
+        zone_table = tables.ZoneTable(zones)
         zone_table.columns.hide('api_server_count')
         zone_table.configure(request)
 

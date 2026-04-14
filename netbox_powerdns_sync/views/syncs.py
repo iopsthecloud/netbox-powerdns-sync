@@ -67,8 +67,7 @@ class SyncJobsView(ContentTypePermissionRequiredMixin, View):
         ).order_by("-created")
         jobs_table = SyncJobTable(
             data=jobs,
-            orderable=False,
-            user=request.user
+            orderable=False
         )
         jobs_table.configure(request)
 

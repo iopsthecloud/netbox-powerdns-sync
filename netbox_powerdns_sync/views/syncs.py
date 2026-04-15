@@ -136,8 +136,7 @@ class SyncScheduleView(View):
         scheduled_jobs = Job.objects.filter(status="scheduled", name=JOB_NAME_SYNC)
         jobs_table = SyncJobTable(
             data=scheduled_jobs,
-            orderable=False,
-            user=request.user
+            orderable=False
         )
         jobs_table.columns.show("scheduled")
         jobs_table.columns.show("interval")

@@ -67,8 +67,7 @@ class SyncJobsView(ContentTypePermissionRequiredMixin, View):
         ).order_by("-created")
         jobs_table = SyncJobTable(
             data=jobs,
-            orderable=False,
-            user=request.user
+            orderable=False
         )
         jobs_table.configure(request)
 
@@ -137,8 +136,7 @@ class SyncScheduleView(View):
         scheduled_jobs = Job.objects.filter(status="scheduled", name=JOB_NAME_SYNC)
         jobs_table = SyncJobTable(
             data=scheduled_jobs,
-            orderable=False,
-            user=request.user
+            orderable=False
         )
         jobs_table.columns.show("scheduled")
         jobs_table.columns.show("interval")
